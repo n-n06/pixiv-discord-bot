@@ -1,5 +1,3 @@
-# This example requires the 'message_content' intent.
-
 import discord
 from discord.ext import commands
 from pixivpy3 import AppPixivAPI    
@@ -50,6 +48,17 @@ async def joined(ctx, member: discord.Member):
     '''
     await ctx.send(f'{member.name} has arrived! {discord.utils.format_dt(member.joined_at)}')
 
+def display_tags(ctx, tags):
+    tags_text = 'Tags: '
+    for tag in tags:
+        if tag['translated_name']:
+            tag_text = tag['name'] + '-' + tag['translated_name'] + ' '
+        else:
+            tag_text = tag['name'] + ' '
+        tags_text += tag_text
+    return ctx.send(tags_text)
+
+
 
 @bot.command(description='Get an illustration from pixiv')
 async def illustration(ctx, illust_id: int):
@@ -64,16 +73,13 @@ async def illustration(ctx, illust_id: int):
     headers = {
         'Referer': 'https://www.pixiv.net/'
     }
-    
-    #send a request to the illust page and parse the response html to get the username, title and the urls
-    response = requests.get(illustration_url, headers=headers)
-    soup = BeautifulSoup(response.text, 'html.parser')
-    illustration_data = soup.find('meta', id='meta-preload-data')['content']
-    illustration_data = json.loads(illustration_data)
+    illust_detail = api.illust_detail(illust_id)
 
-    username = illustration_data['illust'][str(illust_id)]['userName']
-    title = illustration_data['illust'][str(illust_id)]['title']
-    image_url = illustration_data['illust'][str(illust_id)]['urls']['regular']
+    username = illust_detail['illust']['user']['name']
+    title = illust_detail['illust']['caption']
+    image_url = illust_detail['illust']['image_urls']['medium']
+    tags = illust_detail['illust']['tags']
+    
 
     #start an async session to send the image file to the channel
     async with aiohttp.ClientSession() as session:
@@ -81,13 +87,11 @@ async def illustration(ctx, illust_id: int):
             if resp.status != 200:
                 return await ctx.send('Could not download file...')
             data = io.BytesIO(await resp.read())
+            await ctx.send(file = discord.File(data, f'{illust_id}.png'))
+            await ctx.send(title + ' by ' + username)
+            await display_tags(ctx, tags)
             
-            #TODO: change the embed and the file structure to be sent as one 
-            embed = discord.Embed(title=title, url=illustration_url)
-            embed.set_author(name=username)
-            embed.set_thumbnail(url=image_url)
-            await ctx.send(embed=embed, file=discord.File(data, f'{illust_id}.png'))
-            #await ctx.send(file=discord.File(data, f'{illust_id}.png'), embed=embed)
+            #await ctx.send(embed=embed, file=discord.File(data, f'{illust_id}.png'))
 
 
 bot.run(token)
