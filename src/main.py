@@ -1,28 +1,31 @@
 import discord
 from discord.ext import commands
 from pixivpy3 import AppPixivAPI    
-import requests
-import json
 import io
 import aiohttp
-from bs4 import BeautifulSoup
 
 
 from config import token, refresh_token 
+from parsing import display_tags, parse_illust_detail
 
 
+'''
+Basic Bot Configuration
+'''
 description = '''
 A bot that will (I hope) do cool things with pixiv and other apps
 
 Made by n-n06 on github
 '''
 
-
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
 
+'''
+Instances of bot and api
+'''
 api = AppPixivAPI()
 client = discord.Client(intents=intents)
 bot = commands.Bot(command_prefix='/', description=description, intents=intents)
@@ -38,48 +41,46 @@ async def on_ready():
         print('Logged into PixivAPI')
         print('------')
     except:
-        print('Error connecting to the PixivAPI')
+        raise(ConnectionError('Error connecting to the PixivAPI'))
 
-
-@bot.command()
-async def joined(ctx, member: discord.Member):
-    '''
-    Async Function that sends a message upon a new member joining the server.
-    '''
-    await ctx.send(f'{member.name} has arrived! {discord.utils.format_dt(member.joined_at)}')
-
-def display_tags(ctx, tags):
-    tags_text = 'Tags: '
-    for tag in tags:
-        if tag['translated_name']:
-            tag_text = tag['name'] + '-' + tag['translated_name'] + ' '
-        else:
-            tag_text = tag['name'] + ' '
-        tags_text += tag_text
-    return ctx.send(tags_text)
 
 
 
 @bot.command(description='Get an illustration from pixiv')
-async def illustration(ctx, illust_id: int):
+async def illustration(ctx, illust_id: int, image_size: str = 'medium'):
     '''
-    Async Function that sends an illustration and an embed to a Discord channel on /illustration.
-    The embed contains the illustration url, author name and the illustration name.
+    Sends an illustration to a Discord channel on /illustration.
+    
+    Sends an illustration's image of a particular size to a Discord channel.
+    Then, sends general information about the illustration.
+
+    NOTE: the image will not be displayed without the headers in the request
+
+    Args:
+        illust_id: int. An identifier of the illustration on Pixiv
+        image_size: str. By default, set to 'medium'
+
     '''
 
-    illustration_url =f'https://www.pixiv.net/en/artworks/{illust_id}'
     
     #this part is necessary for the bot to be able to access pixiv image data 
     headers = {
         'Referer': 'https://www.pixiv.net/'
     }
-    illust_detail = api.illust_detail(illust_id)
 
-    username = illust_detail['illust']['user']['name']
-    title = illust_detail['illust']['caption']
-    image_url = illust_detail['illust']['image_urls']['medium']
-    tags = illust_detail['illust']['tags']
+    try:
+        illust_detail = api.illust_detail(illust_id)
+    except:
+        raise(ValueError('Invalid illust_id'))
+
+
     
+    try:
+        username, title, image_url, tags = await parse_illust_detail(illust_detail, image_size)
+    except Exception as e:
+        await ctx.send(e)
+        return
+        
 
     #start an async session to send the image file to the channel
     async with aiohttp.ClientSession() as session:
@@ -90,8 +91,7 @@ async def illustration(ctx, illust_id: int):
             await ctx.send(file = discord.File(data, f'{illust_id}.png'))
             await ctx.send(title + ' by ' + username)
             await display_tags(ctx, tags)
-            
-            #await ctx.send(embed=embed, file=discord.File(data, f'{illust_id}.png'))
+             
 
 
 bot.run(token)

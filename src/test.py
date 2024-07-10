@@ -2,11 +2,13 @@ from os import walk
 from pixivpy3 import AppPixivAPI
 import requests
 from config import refresh_token
+from parsing import parse_illust_detail
 
 app = AppPixivAPI()
 app.auth(refresh_token=refresh_token)
 
-json_result = app.illust_detail(1618456)
+json_result = app.illust_detail(6696969)
+result2 = app.illust_detail(9498546)
 
 #print(json_result['illust']['image_urls']['medium'])
 #print(json_result['illust']['caption'])
@@ -16,9 +18,7 @@ headers = {
     'Referer': 'https://www.pixiv.net/'
 }
 
-print(json_result['illust']['tags'])
-print(json_result['illust']['meta_single_page'])
 
-response = requests.get(json_result['illust']['image_urls']['medium'], headers=headers)
+values = parse_illust_detail(json_result, 'medium')
 
 

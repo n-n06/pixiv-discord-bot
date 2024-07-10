@@ -1,3 +1,9 @@
+'''A module to load private information from .env file
+
+Loads tokens and passwords from the .env file that can
+  be used in other modules or scripts.
+'''
+
 import dotenv
 import os
 
