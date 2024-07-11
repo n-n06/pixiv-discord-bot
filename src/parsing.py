@@ -6,11 +6,12 @@ This module was designed to parse and return only some
 
 '''
 
-async def parse_illust_detail(illust_detail, image_size):
+def parse_illust_detail(illust_detail, image_size):
     '''Parses the illust json and return necessary data.
 
-    Returns the name of the artwork, its author's username,
-      image URLS and tags.
+    Returns the title of the artwork, its author's username,
+      image URLS and tags. Can be used for both single illustrations
+      and multiple illustrations(in case of daily rankings)
 
     Args:
         illust_detail: ParsedJson from PixivAPI's response.
@@ -35,19 +36,32 @@ async def parse_illust_detail(illust_detail, image_size):
     '''
     
     if illust_detail.get('error'):
-        raise(Exception('Illusration not Found'))
-    if not illust_detail['illust']['visible']:
-        raise(Exception('Illusration Set to Invinsible'))
+        raise(Exception('Illusration Not Found'))
 
-    username = illust_detail['illust']['user']['name']
-    title = illust_detail['illust']['caption']
-    image_url = illust_detail['illust']['image_urls'][image_size]
-    tags = illust_detail['illust']['tags']
+    
+    if illust_detail.get('illust'):
+        if not illust_detail['illust']['visible']:
+            raise(Exception('Illusration Set to Invinsible'))
+        username = illust_detail['illust']['user']['name']
+        title = illust_detail['illust']['title']
+        image_url = illust_detail['illust']['image_urls'][image_size]
+        tags = illust_detail['illust']['tags']
+        values = (username, title, image_url, tags)
+    else:
+        if not illust_detail['visible']:
+            raise(Exception('Illusration Set to Invinsible'))
+        illust_id = illust_detail['id']
+        username = illust_detail['user']['name']
+        title = illust_detail['title']
+        image_url = illust_detail['image_urls'][image_size]
+        tags = illust_detail['tags']
+        values = (illust_id, username, title, image_url, tags)
 
-    return username, title, image_url, tags
+    return values
 
+#TODO: place the display_tags function in the parsing funciton
 
-def display_tags(ctx, tags: dict):
+def display_tags(tags) -> str:
     '''Sends a string of tags to the Discord channel
 
     Iterates over each tag and attaches its translation
@@ -71,4 +85,4 @@ def display_tags(ctx, tags: dict):
         else:
             tags_list.append(tag['name'])
     tags_text += ', '.join(tags_list)
-    return ctx.send(tags_text)
+    return tags_text

@@ -44,6 +44,14 @@ async def on_ready():
         raise(ConnectionError('Error connecting to the PixivAPI'))
 
 
+async def send_illustration(ctx, illust_id, username, title, tags, image_url, headers):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(image_url, headers=headers) as resp:
+            if resp.status != 200:
+                return await ctx.send('Could not download file...')
+            data = io.BytesIO(await resp.read())
+            await ctx.send(file = discord.File(data, f'{illust_id}.png'))
+            await ctx.send(title + ' by ' + username + '\n' + display_tags(tags))
 
 
 @bot.command(description='Get an illustration from pixiv')
@@ -76,22 +84,38 @@ async def illustration(ctx, illust_id: int, image_size: str = 'medium'):
 
     
     try:
-        username, title, image_url, tags = await parse_illust_detail(illust_detail, image_size)
+        username, title, image_url, tags = parse_illust_detail(illust_detail, image_size)
     except Exception as e:
         await ctx.send(e)
         return
         
 
     #start an async session to send the image file to the channel
-    async with aiohttp.ClientSession() as session:
-        async with session.get(image_url, headers=headers) as resp:
-            if resp.status != 200:
-                return await ctx.send('Could not download file...')
-            data = io.BytesIO(await resp.read())
-            await ctx.send(file = discord.File(data, f'{illust_id}.png'))
-            await ctx.send(title + ' by ' + username)
-            await display_tags(ctx, tags)
+    await send_illustration(ctx, illust_id, username, title, tags, image_url, headers)
              
+
+@bot.command(description='Get daily rankings from pixiv')
+async def daily(ctx, image_size: str = 'medium'):
+    '''
+    
+    '''
+    headers = {
+        'Referer': 'https://www.pixiv.net/'
+    }
+
+    illusts_details = api.illust_ranking('day')
+    for illust in illusts_details['illusts']:
+        try:
+            illust_id, username, title, image_url, tags = parse_illust_detail(illust, image_size)
+            print(username, title)
+        except Exception as e:
+            await ctx.send(e)
+            return
+
+        await send_illustration(ctx, illust_id, username, title, tags, image_url, headers)
+
+
+    
 
 
 bot.run(token)

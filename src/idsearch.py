@@ -7,8 +7,8 @@ from parsing import parse_illust_detail
 app = AppPixivAPI()
 app.auth(refresh_token=refresh_token)
 
-json_result = app.illust_detail(6696969)
-result2 = app.illust_detail(9498546)
+
+result2 = app.illust_detail(110221098)
 
 #print(json_result['illust']['image_urls']['medium'])
 #print(json_result['illust']['caption'])
@@ -19,6 +19,7 @@ headers = {
 }
 
 
-values = parse_illust_detail(json_result, 'medium')
+values = parse_illust_detail(result2, 'medium')
+print(values)
 
 
