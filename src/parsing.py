@@ -5,8 +5,9 @@ This module was designed to parse and return only some
   for the Discord bot.
 
 '''
+import typing
 
-def parse_illust_detail(illust_detail, image_size = str):
+def parse_illust_detail(illust_detail, image_size: typing.Literal['medium', 'large', 'original'] = 'medium'):
     '''Parses the illust json and return necessary data.
 
     Returns the title of the artwork, its author's username,
@@ -38,24 +39,23 @@ def parse_illust_detail(illust_detail, image_size = str):
     if illust_detail.get('error'):
         raise(Exception('Illusration Not Found'))
 
-    
     if illust_detail.get('illust'):
-        if not illust_detail['illust']['visible']:
-            raise(Exception('Illusration Set to Invinsible'))
-        username = illust_detail['illust']['user']['name']
-        title = illust_detail['illust']['title']
-        image_url = illust_detail['illust']['image_urls'][image_size]
-        tags = _concat_tags(illust_detail['illust']['tags'])
-        values = (username, title, image_url, tags)
+        illust_detail = illust_detail['illust']
+
+    if not illust_detail['visible']:
+        raise(Exception('Illusration Set to Invinsible'))
+
+
+    illust_id = illust_detail['id']
+    username = illust_detail['user']['name']
+    title = illust_detail['title']
+    if image_size == 'original':
+        image_url = illust_detail['meta_single_page']['original_image_url']
     else:
-        if not illust_detail['visible']:
-            raise(Exception('Illusration Set to Invinsible'))
-        illust_id = illust_detail['id']
-        username = illust_detail['user']['name']
-        title = illust_detail['title']
         image_url = illust_detail['image_urls'][image_size]
-        tags = _concat_tags(illust_detail['tags'])
-        values = (illust_id, username, title, image_url, tags)
+    tags = _concat_tags(illust_detail['tags'])
+    values = (illust_id, username, title, image_url, tags)
+
 
     return values
 

@@ -36,7 +36,6 @@ bot = commands.Bot(command_prefix='/', description=description, intents=intents)
 
 
 
-
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user} (ID: {bot.user.id})')
@@ -50,7 +49,7 @@ async def on_ready():
 
 
 async def send_illustration(ctx, illust_id : int, username : str, title : str, tags : str, image_url : str):
-    '''Asyncrouniously sends an illustration to a Discord channel
+    '''Asyncrouniously sends an illustration image to a Discord channel
 
     Args:
         illust_id: int. An identifier of the illustration.
@@ -73,9 +72,10 @@ async def send_illustration(ctx, illust_id : int, username : str, title : str, t
             #await ctx.send(title + ' by ' + username + '\n' + display_tags(tags))
 
 
+
 @bot.command(description='Get an illustration from pixiv')
-async def illustration(ctx, illust_id: int, image_size: str = 'medium'):
-    '''Sends an illustration to a Discord channel on /illustration.
+async def illustration(ctx, illust_id: int, image_size: typing.Literal['medium', 'large', 'original'] = 'medium'):
+    '''Sends an illustration and its info to a Discord channel on /illustration.
     
     Sends an illustration's image of a particular size to a Discord channel.
     Then, sends general information about the illustration.
@@ -84,13 +84,13 @@ async def illustration(ctx, illust_id: int, image_size: str = 'medium'):
 
     Args:
         illust_id: int. An identifier of the illustration on Pixiv
-        image_size: str. By default, set to 'medium'
+        image_size: str. By default, set to 'medium'.
 
     Raises:
-        Illusration not Found: if the page for the illustration
+        Illusration not Found if the page for the illustration
           is missing
 
-        Illusration Set to Invinsible: if the illust is set to Invinsible
+        Illusration Set to Invinsible if the illust is set to Invinsible
           by either the user or the author
         
     '''
@@ -99,7 +99,7 @@ async def illustration(ctx, illust_id: int, image_size: str = 'medium'):
 
     
     try:
-        username, title, image_url, tags = parse_illust_detail(illust_detail, image_size)
+        _, username, title, image_url, tags = parse_illust_detail(illust_detail, image_size)
     except Exception as e:
         await ctx.send(e)
         return
@@ -112,29 +112,34 @@ async def illustration(ctx, illust_id: int, image_size: str = 'medium'):
     #await ctx.send(recommendation_text)
              
 
+
 @bot.command(description='Get daily rankings from pixiv')
 async def daily(ctx, 
                 limit : typing.Optional[int], 
                 gender: typing.Optional[typing.Literal['male', 'female']],
-                r18: typing.Optional[typing.Literal['nsfw']],
-                image_size: str = 'medium'): 
+                r18: typing.Optional[typing.Literal['r18']],
+                image_size: typing.Literal['medium', 'large', 'original'] = 'medium'): 
     '''Sends daily rankings from pixiv to a Discord channel on /daily
+        
+    Sends a limited number of illustrations that are trending today 
+      among the users of pixiv. Supports ranking specifications 
+      such as gender, supports filtering R18 arts.
 
     Args:
-        limit: Optional[int] - the number of illustrations to send
-        image_size: str
-        gender: str. Either male or female (in this case. not in general)
+        limit: int. Optional. Number of illustrations to send
+        image_size: str. By default, set to 'medium'
+        gender: str. Optional. Either male or female
           Specifies ranking's gender criteria
-        r18: str. Optional. Can be either omited or specified as NSFW
+        r18: str. Optional. Can be either omited or specified as r18
 
     Returns:
         None
     
     Raises:
-        Illusration not Found: if the page for the illustration
+        Illusration not Found if the page for the illustration
           is missing
 
-        Illusration Set to Invinsible: if the illust is set to Invinsible
+        Illusration Set to Invinsible if the illust is set to Invinsible
           by either the user or the author   
     '''
     mode = 'day'
@@ -143,7 +148,6 @@ async def daily(ctx,
     if r18:
         mode = mode + '_' + 'r18'
 
-    print(mode)
     
     #filtering out non-illust artworks
     daily_illusts_details = list(filter(lambda artwork: artwork['type'] == 'illust',api.illust_ranking(mode)['illusts']))
@@ -162,16 +166,73 @@ async def daily(ctx,
         await send_illustration(ctx, illust_id, username, title, tags, image_url)
 
 
+
 @bot.command(description = 'Get weekly rankings from pixiv')
-async def weekly(ctx, limit: typing.Optional[int], image_size: str = 'medium'):
-    pass
+async def weekly(ctx,
+                 limit: typing.Optional[int],
+                 details: typing.Optional[typing.Literal['original', 'rookie', 'r18']],
+                 image_size: typing.Literal['medium', 'large', 'original'] = 'medium'):
+    '''Sends weekly rankings from pixiv to a Discord channel on /daily
+    
+    Sends a limited number of illustrations that are trending this week 
+      among the users of pixiv. Supports ranking specifications 
+      such as originality, artist experience and filtering R18 arts.
+
+    Args:
+        limit: int. Optional. Number of illustrations to send
+        details: str. Optinal. Weekly ranking specification.
+          Either original, rookie (arts by amateur artists) or r18
+        image_size: str. By default, set to 'medium'
+
+    Returns:
+        None
+    
+    Raises:
+        Illusration not Found if the page for the illustration
+          is missing
+
+        Illusration Set to Invinsible if the illust is set to Invinsible
+          by either the user or the author   
+    '''
+    mode = 'week'
+
+    if details:
+        mode = mode + '_' + details
+
+    
+    #filtering out non-illust artworks
+    weekly_illusts_details = list(filter(lambda artwork: artwork['type'] == 'illust', api.illust_ranking(mode)['illusts']))
+        
+    if limit:
+        weekly_illusts_details = weekly_illusts_details[:limit]
+
+
+    for illust in weekly_illusts_details:
+        try:
+            illust_id, username, title, image_url, tags = parse_illust_detail(illust, image_size)
+        except Exception as e:
+            await ctx.send(e)
+            return
+
+        await send_illustration(ctx, illust_id, username, title, tags, image_url)
     
 
 @bot.command(description = 'Get monthly rankings from pixiv')
-async def monthly(ctx, limit: typing.Optional[int], image_size: str = 'medium'):
-    pass
+async def monthly(ctx, limit: typing.Optional[int], image_size: typing.Literal['medium', 'large', 'original'] = 'medium'):
+    
+    montly_illusts_details = list(filter(lambda artwork: artwork['type'] == 'illust', api.illust_ranking('month')['illusts'])) 
 
+    if limit:
+        montly_illusts_details = montly_illusts_details[:limit]
 
+    for illust in montly_illusts_details:
+        try:
+            illust_id, username, title, image_url, tags = parse_illust_detail(illust, image_size)
+        except Exception as e:
+            await ctx.send(e)
+            return
+
+        await send_illustration(ctx, illust_id, username, title, tags, image_url)
 
 
 bot.run(token)
