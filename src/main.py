@@ -3,10 +3,10 @@ from discord.ext import commands
 from pixivpy3 import AppPixivAPI    
 import io
 import aiohttp
-
+import typing
 
 from config import token, refresh_token 
-from parsing import display_tags, parse_illust_detail
+from parsing import parse_illust_detail
 
 
 '''
@@ -22,6 +22,9 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
+headers = {
+    'Referer': 'https://www.pixiv.net/'
+}
 
 '''
 Instances of bot and api
@@ -29,6 +32,8 @@ Instances of bot and api
 api = AppPixivAPI()
 client = discord.Client(intents=intents)
 bot = commands.Bot(command_prefix='/', description=description, intents=intents)
+
+
 
 
 
@@ -44,20 +49,33 @@ async def on_ready():
         raise(ConnectionError('Error connecting to the PixivAPI'))
 
 
-async def send_illustration(ctx, illust_id, username, title, tags, image_url, headers):
+async def send_illustration(ctx, illust_id : int, username : str, title : str, tags : str, image_url : str):
+    '''Asyncrouniously sends an illustration to a Discord channel
+
+    Args:
+        illust_id: int. An identifier of the illustration.
+          Used to name the image file
+        username: str. The illustration's creator
+        title: str
+        tags: str
+        image_url: str. A URL to the image on pximg.net
+
+    Returns:
+        None
+
+    '''
     async with aiohttp.ClientSession() as session:
         async with session.get(image_url, headers=headers) as resp:
             if resp.status != 200:
-                return await ctx.send('Could not download file...')
+                return print('Could not download file...')
             data = io.BytesIO(await resp.read())
-            await ctx.send(file = discord.File(data, f'{illust_id}.png'))
-            await ctx.send(title + ' by ' + username + '\n' + display_tags(tags))
+            await ctx.send(title + ' by ' + username + '\n' + tags, file = discord.File(data, f'{illust_id}.png'))
+            #await ctx.send(title + ' by ' + username + '\n' + display_tags(tags))
 
 
 @bot.command(description='Get an illustration from pixiv')
 async def illustration(ctx, illust_id: int, image_size: str = 'medium'):
-    '''
-    Sends an illustration to a Discord channel on /illustration.
+    '''Sends an illustration to a Discord channel on /illustration.
     
     Sends an illustration's image of a particular size to a Discord channel.
     Then, sends general information about the illustration.
@@ -68,19 +86,16 @@ async def illustration(ctx, illust_id: int, image_size: str = 'medium'):
         illust_id: int. An identifier of the illustration on Pixiv
         image_size: str. By default, set to 'medium'
 
+    Raises:
+        Illusration not Found: if the page for the illustration
+          is missing
+
+        Illusration Set to Invinsible: if the illust is set to Invinsible
+          by either the user or the author
+        
     '''
 
-    
-    #this part is necessary for the bot to be able to access pixiv image data 
-    headers = {
-        'Referer': 'https://www.pixiv.net/'
-    }
-
-    try:
-        illust_detail = api.illust_detail(illust_id)
-    except:
-        raise(ValueError('Invalid illust_id'))
-
+    illust_detail = api.illust_detail(illust_id)
 
     
     try:
@@ -91,32 +106,90 @@ async def illustration(ctx, illust_id: int, image_size: str = 'medium'):
         
 
     #start an async session to send the image file to the channel
-    await send_illustration(ctx, illust_id, username, title, tags, image_url, headers)
+    await send_illustration(ctx, illust_id, username, title, tags, image_url)
+
+    #recommendation_text = f'You can use /recommend {illust_id} to get recommended artworks'
+    #await ctx.send(recommendation_text)
              
 
 @bot.command(description='Get daily rankings from pixiv')
-async def daily(ctx, image_size: str = 'medium'):
-    '''
-    
-    '''
-    headers = {
-        'Referer': 'https://www.pixiv.net/'
-    }
+async def daily(ctx, 
+                limit : typing.Optional[int], 
+                gender: typing.Optional[typing.Literal['male', 'female']],
+                r18: typing.Optional[typing.Literal['nsfw']],
+                image_size: str = 'medium'): 
+    '''Sends daily rankings from pixiv to a Discord channel on /daily
 
-    illusts_details = api.illust_ranking('day')
-    for illust in illusts_details['illusts']:
+    Args:
+        limit: Optional[int] - the number of illustrations to send
+        image_size: str
+        gender: str. Either male or female (in this case. not in general)
+          Specifies ranking's gender criteria
+        r18: str. Optional. Can be either omited or specified as NSFW
+
+    Returns:
+        None
+    
+    Raises:
+        Illusration not Found: if the page for the illustration
+          is missing
+
+        Illusration Set to Invinsible: if the illust is set to Invinsible
+          by either the user or the author   
+    '''
+    mode = 'day'
+    if gender:
+        mode = mode + '_' + gender
+    if r18:
+        mode = mode + '_' + 'r18'
+
+    print(mode)
+    
+    #filtering out non-illust artworks
+    daily_illusts_details = list(filter(lambda artwork: artwork['type'] == 'illust',api.illust_ranking(mode)['illusts']))
+        
+    if limit:
+        daily_illusts_details = daily_illusts_details[:limit]
+
+
+    for illust in daily_illusts_details:
         try:
             illust_id, username, title, image_url, tags = parse_illust_detail(illust, image_size)
-            print(username, title)
         except Exception as e:
             await ctx.send(e)
             return
 
-        await send_illustration(ctx, illust_id, username, title, tags, image_url, headers)
+        await send_illustration(ctx, illust_id, username, title, tags, image_url)
 
 
+@bot.command(description = 'Get weekly rankings from pixiv')
+async def weekly(ctx, limit: typing.Optional[int], image_size: str = 'medium'):
+    pass
     
+
+@bot.command(description = 'Get monthly rankings from pixiv')
+async def monthly(ctx, limit: typing.Optional[int], image_size: str = 'medium'):
+    pass
+
+
 
 
 bot.run(token)
+'''
+TODO:
+1. weekly / monthly rankings illust_ranking
+2. tag search search_illust with limit
+3. illust_related, illust_recommended with limit
+4. user_detail, user_illusts with limit
 
+
+Final functionality:
+1. illust by id
+2. daily / weekly / monthly rankings (same function but different args)
+3. tag search 
+4. get related illusts
+5. get illustrations of a user or info about the user
+
+
+
+'''

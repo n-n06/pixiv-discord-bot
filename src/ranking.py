@@ -8,10 +8,10 @@ app = AppPixivAPI()
 
 app.auth(refresh_token=refresh_token)
 
-result = app.illust_ranking("day")
+result = app.illust_ranking("day")['illusts']
+print(*filter(lambda artwork: artwork['type'] == 'illust', result))
 
-#s = json.dumps(result, indent=2)
-#print(s)
+s = json.dumps(list(result), indent=2)
+print(s)
 
-for illust in result['illusts']:
-    print(illust['title'], illust['user']['name'])
+

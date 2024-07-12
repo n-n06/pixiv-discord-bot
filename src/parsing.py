@@ -6,7 +6,7 @@ This module was designed to parse and return only some
 
 '''
 
-def parse_illust_detail(illust_detail, image_size):
+def parse_illust_detail(illust_detail, image_size = str):
     '''Parses the illust json and return necessary data.
 
     Returns the title of the artwork, its author's username,
@@ -18,7 +18,7 @@ def parse_illust_detail(illust_detail, image_size):
         image_size: str. Possible values: medium, large, square, etc.
     
     Returns:
-        A tuple of all of the aforementioned information about 
+        values: A tuple of all of the aforementioned information about 
           the illustration.
 
         Example:
@@ -45,7 +45,7 @@ def parse_illust_detail(illust_detail, image_size):
         username = illust_detail['illust']['user']['name']
         title = illust_detail['illust']['title']
         image_url = illust_detail['illust']['image_urls'][image_size]
-        tags = illust_detail['illust']['tags']
+        tags = _concat_tags(illust_detail['illust']['tags'])
         values = (username, title, image_url, tags)
     else:
         if not illust_detail['visible']:
@@ -54,26 +54,21 @@ def parse_illust_detail(illust_detail, image_size):
         username = illust_detail['user']['name']
         title = illust_detail['title']
         image_url = illust_detail['image_urls'][image_size]
-        tags = illust_detail['tags']
+        tags = _concat_tags(illust_detail['tags'])
         values = (illust_id, username, title, image_url, tags)
 
     return values
 
-#TODO: place the display_tags function in the parsing funciton
 
-def display_tags(tags) -> str:
-    '''Sends a string of tags to the Discord channel
-
-    Iterates over each tag and attaches its translation
-      if provided on Pixiv. Then, all of the tags are
-      concatenated into a single string
+def _concat_tags(tags) -> str:
+    '''Adds tags up into a sinlge string
 
     Args:
         tags: a list of dict objects with 2 keys: 
           name and translated_name
 
     Returns:
-        A string of concatenated tags
+        tags_text: A string of concatenated tags
 
     '''
     tags_text = 'Tags: '
