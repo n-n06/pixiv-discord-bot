@@ -5,6 +5,8 @@ import io
 import aiohttp
 import typing
 
+from time import time
+
 from config import token, refresh_token 
 from parsing import parse_illust_detail
 
@@ -35,7 +37,6 @@ bot = commands.Bot(command_prefix='/', description=description, intents=intents)
 
 
 
-
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user} (ID: {bot.user.id})')
@@ -46,7 +47,7 @@ async def on_ready():
         print('------')
     except:
         raise(ConnectionError('Error connecting to the PixivAPI'))
-
+ 
 
 async def send_illustration(ctx, illust_id : int, username : str, title : str, tags : str, image_url : str):
     '''Asyncrouniously sends an illustration image to a Discord channel
@@ -69,8 +70,7 @@ async def send_illustration(ctx, illust_id : int, username : str, title : str, t
                 return print('Could not download file...')
             data = io.BytesIO(await resp.read())
             await ctx.send(title + ' by ' + username + '\n' + tags, file = discord.File(data, f'{illust_id}.png'))
-            #await ctx.send(title + ' by ' + username + '\n' + display_tags(tags))
-
+            
 
 
 @bot.command(description='Get an illustration from pixiv')
@@ -107,7 +107,6 @@ async def illustration(ctx, illust_id: int, image_size: typing.Literal['medium',
 
     #start an async session to send the image file to the channel
     await send_illustration(ctx, illust_id, username, title, tags, image_url)
-
     #recommendation_text = f'You can use /recommend {illust_id} to get recommended artworks'
     #await ctx.send(recommendation_text)
              
@@ -170,18 +169,18 @@ async def daily(ctx,
 @bot.command(description = 'Get weekly rankings from pixiv')
 async def weekly(ctx,
                  limit: typing.Optional[int],
-                 details: typing.Optional[typing.Literal['original', 'rookie', 'r18']],
+                 details: typing.Optional[typing.Literal['rookie', 'r18']],
                  image_size: typing.Literal['medium', 'large', 'original'] = 'medium'):
-    '''Sends weekly rankings from pixiv to a Discord channel on /daily
+    '''Sends weekly rankings from pixiv to a Discord channel on /weekly
     
     Sends a limited number of illustrations that are trending this week 
       among the users of pixiv. Supports ranking specifications 
-      such as originality, artist experience and filtering R18 arts.
+      such as artist experience and filtering R18 arts.
 
     Args:
         limit: int. Optional. Number of illustrations to send
         details: str. Optinal. Weekly ranking specification.
-          Either original, rookie (arts by amateur artists) or r18
+          Either rookie (arts by amateur artists) or r18
         image_size: str. By default, set to 'medium'
 
     Returns:
@@ -215,10 +214,31 @@ async def weekly(ctx,
             return
 
         await send_illustration(ctx, illust_id, username, title, tags, image_url)
-    
+   
+
 
 @bot.command(description = 'Get monthly rankings from pixiv')
 async def monthly(ctx, limit: typing.Optional[int], image_size: typing.Literal['medium', 'large', 'original'] = 'medium'):
+    '''Sends monthly rankings from pixiv to a Discord channel on /monthly
+    
+    Sends a limited number of top illustrations this month
+      Does not support specifications
+
+    Args:
+        limit: int. Optional. Number of illustrations to send
+        image_size: str. By default, set to 'medium'
+
+    Returns:
+        None
+    
+    Raises:
+        Illusration not Found if the page for the illustration
+          is missing
+
+        Illusration Set to Invinsible if the illust is set to Invinsible
+          by either the user or the author   
+    '''
+
     
     montly_illusts_details = list(filter(lambda artwork: artwork['type'] == 'illust', api.illust_ranking('month')['illusts'])) 
 
@@ -233,6 +253,7 @@ async def monthly(ctx, limit: typing.Optional[int], image_size: typing.Literal['
             return
 
         await send_illustration(ctx, illust_id, username, title, tags, image_url)
+
 
 
 bot.run(token)
@@ -252,5 +273,9 @@ Final functionality:
 5. get illustrations of a user or info about the user
 
 
-
 '''
+
+
+
+
+

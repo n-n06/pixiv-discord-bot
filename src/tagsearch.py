@@ -7,7 +7,7 @@ import requests
 api = pixivpy3.AppPixivAPI()
 api.auth(refresh_token=refresh_token)
 
-print(json.dumps(api.illust_detail(12350246), indent=2))
+print(json.dumps(api.illust_detail(119804911), indent=2))
 
 
 #TODO: implement the partial tag search in the functionality of the bot
@@ -17,4 +17,7 @@ print(json.dumps(api.illust_detail(12350246), indent=2))
 #    print(illust.title, illust.user.name, illust.id)
 
 #illust = json_result.illusts[0]
+
+
+
 #print(">>> %s, origin url: %s" % (illust.title, illust.image_urls['large']))

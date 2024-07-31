@@ -50,7 +50,10 @@ def parse_illust_detail(illust_detail, image_size: typing.Literal['medium', 'lar
     username = illust_detail['user']['name']
     title = illust_detail['title']
     if image_size == 'original':
-        image_url = illust_detail['meta_single_page']['original_image_url']
+        if illust_detail.get('meta_single_page'):
+            image_url = illust_detail['meta_single_page']['original_image_url']
+        else:
+            image_url =  illust_detail['meta_pages'][0]['image_urls']['original']
     else:
         image_url = illust_detail['image_urls'][image_size]
     tags = _concat_tags(illust_detail['tags'])
