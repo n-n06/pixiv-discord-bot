@@ -5,36 +5,21 @@ import io
 import aiohttp
 import typing
 
-from time import time
 
-from config import token, refresh_token 
-from parsing import parse_illust_detail
+from envconfig import token, refresh_token
+from botconfig import bot_description, bot_intents, request_headers 
+from parsing import PixivParser
 
 
-'''
-Basic Bot Configuration
-'''
-description = '''
-A bot that will (I hope) do cool things with pixiv and other apps
-
-Made by n-n06 on github
-'''
-
-intents = discord.Intents.default()
-intents.message_content = True
-intents.members = True
-
-headers = {
-    'Referer': 'https://www.pixiv.net/'
-}
 
 '''
 Instances of bot and api
 '''
 api = AppPixivAPI()
-client = discord.Client(intents=intents)
-bot = commands.Bot(command_prefix='/', description=description, intents=intents)
+client = discord.Client(intents=bot_intents)
+bot = commands.Bot(command_prefix='/', description=bot_description, intents=bot_intents)
 
+parser = PixivParser(api)
 
 
 @bot.event
@@ -65,7 +50,7 @@ async def send_illustration(ctx, illust_id : int, username : str, title : str, t
 
     '''
     async with aiohttp.ClientSession() as session:
-        async with session.get(image_url, headers=headers) as resp:
+        async with session.get(image_url, headers=request_headers) as resp:
             if resp.status != 200:
                 return print('Could not download file...')
             data = io.BytesIO(await resp.read())
@@ -99,7 +84,7 @@ async def illustration(ctx, illust_id: int, image_size: typing.Literal['medium',
 
     
     try:
-        _, username, title, image_url, tags = parse_illust_detail(illust_detail, image_size)
+        _, username, title, image_url, tags = parser.parse_illust_detail(illust_detail, image_size)
     except Exception as e:
         await ctx.send(e)
         return
@@ -113,11 +98,7 @@ async def illustration(ctx, illust_id: int, image_size: typing.Literal['medium',
 
 
 @bot.command(description='Get daily rankings from pixiv')
-async def daily(ctx, 
-                limit : typing.Optional[int], 
-                gender: typing.Optional[typing.Literal['male', 'female']],
-                r18: typing.Optional[typing.Literal['r18']],
-                image_size: typing.Literal['medium', 'large', 'original'] = 'medium'): 
+async def daily(ctx, *, args: str): 
     '''Sends daily rankings from pixiv to a Discord channel on /daily
         
     Sends a limited number of illustrations that are trending today 
@@ -141,23 +122,13 @@ async def daily(ctx,
         Illusration Set to Invinsible if the illust is set to Invinsible
           by either the user or the author   
     '''
-    mode = 'day'
-    if gender:
-        mode = mode + '_' + gender
-    if r18:
-        mode = mode + '_' + 'r18'
 
-    
-    #filtering out non-illust artworks
-    daily_illusts_details = list(filter(lambda artwork: artwork['type'] == 'illust',api.illust_ranking(mode)['illusts']))
-        
-    if limit:
-        daily_illusts_details = daily_illusts_details[:limit]
+    daily_illusts_details, image_size = parser.parse_daily_rankings(args)
 
 
     for illust in daily_illusts_details:
         try:
-            illust_id, username, title, image_url, tags = parse_illust_detail(illust, image_size)
+            illust_id, username, title, image_url, tags = parser.parse_illust_detail(illust, image_size)
         except Exception as e:
             await ctx.send(e)
             return
@@ -208,7 +179,7 @@ async def weekly(ctx,
 
     for illust in weekly_illusts_details:
         try:
-            illust_id, username, title, image_url, tags = parse_illust_detail(illust, image_size)
+            illust_id, username, title, image_url, tags = parser.parse_illust_detail(illust, image_size)
         except Exception as e:
             await ctx.send(e)
             return
@@ -247,7 +218,7 @@ async def monthly(ctx, limit: typing.Optional[int], image_size: typing.Literal['
 
     for illust in montly_illusts_details:
         try:
-            illust_id, username, title, image_url, tags = parse_illust_detail(illust, image_size)
+            illust_id, username, title, image_url, tags = parser.parse_illust_detail(illust, image_size)
         except Exception as e:
             await ctx.send(e)
             return

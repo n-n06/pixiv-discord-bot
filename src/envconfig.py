@@ -1,3 +1,4 @@
+
 '''A module to load private information from .env file
 
 Loads tokens and passwords from the .env file that can
@@ -6,12 +7,11 @@ Loads tokens and passwords from the .env file that can
 
 import dotenv
 import os
+import discord
 
 dotenv.load_dotenv("../.env")
 token = os.environ.get("TOKEN")
 #pixiv_username = os.environ.get("PIXIV_USERNAME")
 #pixiv_password = os.environ.get("PIXIV_PASSWORD")
 refresh_token = os.environ.get("REFRESH_TOKEN")
-
-
 
