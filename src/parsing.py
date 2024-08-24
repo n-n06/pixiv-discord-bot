@@ -8,12 +8,19 @@ This module was designed to parse and return only some
 import typing
 import pixivpy3
 
-class PixivParser():
-    def __init_(self, api: pixivpy3.AppPixivAPI):
+from typing_utils import (
+    image_size_literal,
+    gender_literal,
+    r18_literal,
+    limit_type
+)
+
+class PixivParser:
+    def __init__(self, api: pixivpy3.AppPixivAPI):
         self.api = api
     
 
-    def parse_illust_detail(self, illust_detail, image_size: typing.Literal['medium', 'large', 'original'] = 'medium'):
+    def parse_illust_detail(self, illust_detail : dict, image_size: image_size_literal = 'medium'):
         '''Parses the illust json and return necessary data.
 
         Returns the title of the artwork, its author's username,
@@ -60,8 +67,24 @@ class PixivParser():
 
 
         return values
-    
-    def parse_daily_rankings(self, gender, r18, limit):
+
+
+    def parse_illust(self, illust_detail : dict, image_size : image_size_literal):
+        if illust_detail.get('error'):
+            raise(Exception('Illusration Not Found'))
+
+        if not illust_detail['visible']:
+            raise(Exception('Illusration Set to Invinsible'))
+
+        username = illust_detail['user']['name']
+        title = illust_detail['title']
+        tags = self._concat_tags(illust_detail['tags'])
+        image_url = self._get_image_url(illust_detail, image_size)
+
+        return username, title, tags, image_url
+
+
+    def parse_daily_rankings(self, gender : gender_literal, r18 : r18_literal, limit : limit_type):
         mode = 'day'
         if gender:
             mode = mode + '_' + gender
@@ -76,21 +99,7 @@ class PixivParser():
         if limit:
             daily_illusts_details = daily_illusts_details[:limit]
 
-        return daily_illusts_details
-
-    def _parse_daily_args(self, args: str):
-        args = args.lower()
-        mode = 'day'
-
-        if 'male' in args:
-            mode += '_male'
-        elif 'female' in args:
-            mode += '_female'
-        
-        if 'r18' in args :
-            mode += '_r18'
-
-        return mode
+        return daily_illusts_details 
             
     def parse_weekly_rankings(self):
         pass
@@ -119,3 +128,15 @@ class PixivParser():
                 tags_list.append(tag['name'])
         tags_text += ', '.join(tags_list)
         return tags_text
+
+
+    def _get_image_url(self, illust_detail : dict, image_size : typing.Literal['medium', 'large', 'original'] = 'medium'):
+        if image_size == 'original':
+            if illust_detail.get('meta_single_page'):
+                image_url = illust_detail['meta_single_page']['original_image_url']
+            else:
+                image_url =  illust_detail['meta_pages'][0]['image_urls']['original']
+        else:
+            image_url = illust_detail['image_urls'][image_size]
+
+        return image_url

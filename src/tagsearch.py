@@ -1,5 +1,5 @@
 import pixivpy3
-from config import refresh_token
+from envconfig import refresh_token
 import json
 import requests
 

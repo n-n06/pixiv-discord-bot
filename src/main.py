@@ -9,7 +9,11 @@ import typing
 from envconfig import token, refresh_token
 from botconfig import bot_description, bot_intents, request_headers 
 from parsing import PixivParser
-
+from typing_utils import (
+    image_size_literal,
+    gender_literal,
+    r18_literal
+)
 
 
 '''
@@ -54,12 +58,13 @@ async def send_illustration(ctx, illust_id : int, username : str, title : str, t
             if resp.status != 200:
                 return print('Could not download file...')
             data = io.BytesIO(await resp.read())
-            await ctx.send(title + ' by ' + username + '\n' + tags, file = discord.File(data, f'{illust_id}.png'))
+            image_file = discord.File(data, f'{illust_id}.png') 
+            await ctx.send(title + ' by ' + username + '\n' + tags, file = image_file)
             
 
 
 @bot.command(description='Get an illustration from pixiv')
-async def illustration(ctx, illust_id: int, image_size: typing.Literal['medium', 'large', 'original'] = 'medium'):
+async def illustration(ctx, illust_id: int, image_size: image_size_literal = 'medium'):
     '''Sends an illustration and its info to a Discord channel on /illustration.
     
     Sends an illustration's image of a particular size to a Discord channel.
@@ -84,21 +89,22 @@ async def illustration(ctx, illust_id: int, image_size: typing.Literal['medium',
 
     
     try:
-        _, username, title, image_url, tags = parser.parse_illust_detail(illust_detail, image_size)
+        username, title, image_url, tags = parser.parse_illust(illust_detail, image_size)
     except Exception as e:
         await ctx.send(e)
         return
         
 
-    #start an async session to send the image file to the channel
     await send_illustration(ctx, illust_id, username, title, tags, image_url)
-    #recommendation_text = f'You can use /recommend {illust_id} to get recommended artworks'
-    #await ctx.send(recommendation_text)
              
 
 
 @bot.command(description='Get daily rankings from pixiv')
-async def daily(ctx, *, args: str): 
+async def daily(ctx, 
+                gender: gender_literal,
+                r18: r18_literal,
+                limit : typing.Optional[int], 
+                image_size: image_size_literal = 'medium'): 
     '''Sends daily rankings from pixiv to a Discord channel on /daily
         
     Sends a limited number of illustrations that are trending today 
@@ -123,7 +129,7 @@ async def daily(ctx, *, args: str):
           by either the user or the author   
     '''
 
-    daily_illusts_details, image_size = parser.parse_daily_rankings(args)
+    daily_illusts_details = parser.parse_daily_rankings(gender, r18, limit)
 
 
     for illust in daily_illusts_details:
@@ -231,9 +237,15 @@ bot.run(token)
 '''
 TODO:
 1. weekly / monthly rankings illust_ranking
+    -basic functionality done
+    -divide into class method of Parser
+    -
 2. tag search search_illust with limit
 3. illust_related, illust_recommended with limit
 4. user_detail, user_illusts with limit
+
+
+
 
 
 Final functionality:
@@ -242,6 +254,9 @@ Final functionality:
 3. tag search 
 4. get related illusts
 5. get illustrations of a user or info about the user
+
+
+
 
 
 '''
